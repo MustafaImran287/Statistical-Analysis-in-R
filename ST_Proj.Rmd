@@ -1,0 +1,636 @@
+
+# Statistical Techniques Project
+
+
+## Install Packages
+```{r, include=FALSE}
+install.packages("Metrics")
+install.packages("tidymodels")
+install.packages("ggplot2")
+install.packages("dplyr")
+install.packages("naniar")
+install.packages("tidyverse")
+install.packages("kableExtra")
+install.packages("lubridate")
+install.packages("readxl")
+install.packages("highcharter")
+install.packages("scales")
+install.packages("RColorBrewer")
+install.packages("wesanderson")
+install.packages("plotly")
+install.packages("shiny")
+install.packages("readr")
+install.packages("choroplethr")
+install.packages("choroplethrMaps")
+install.packages("GGally")
+install.packages("zoo")
+install.packages("scales")
+install.packages("ggmap")
+install.packages("stringr")
+install.packages("gridExtra")
+install.packages("caret")
+install.packages("treemap")
+install.packages("psych")
+install.packages("DAAG")
+install.packages("leaps")
+install.packages("corrplot")
+install.packages("glmnet")
+install.packages("boot")
+install.packages("ggpubr")
+install.packages("gplots")
+install.packages("nortest")
+```
+
+## Loading Packages
+```{r, include=FALSE}
+library(Metrics)
+library(nortest)
+library(tidymodels)
+library(tidyr)
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+library(kableExtra)
+library(lubridate)
+library(readxl)
+library(highcharter)
+library(lubridate)
+library(scales)
+library(RColorBrewer)
+library(wesanderson)
+library(plotly)
+library(shiny)
+library(readxl)
+library(readr)
+library(choroplethr)
+library(choroplethrMaps)
+library(GGally)
+library(zoo)
+library(ggmap)
+library(stringr)
+library(gridExtra)
+library(caret)
+library(treemap)
+library(psych)
+library(leaps)
+library(corrplot)
+library(glmnet)
+library(boot)
+library(ggpubr)
+library(naniar)
+library(gplots)
+library(ggpubr)
+```
+
+
+## Importing Dataset in varibale "hr" using 'read.csv'
+```{r}
+hr <- read.csv("HR_comma_sep.csv")
+hr <- data.frame(hr)
+```
+
+## Displaying first 6 observations of the Dataset using 'head'
+```{r}
+head(hr)
+```
+
+## Checking Dimensionality
+```{r}
+dim(hr)
+```
+
+## Column Names
+```{r}
+colnames(hr)
+```
+
+## Changing Character Data Types to Categorical Variables
+As we see, in column names there are some dimensions that has some categorical data. Initially when data is loaded they are read as character data type. In order to work on such variables their Data Types needs to be converted to Factor.
+```{r}
+hr <- as.data.frame(unclass(hr), stringsAsFactors = TRUE)
+str(hr)
+```
+
+## Checking the Null Values in the Dataset
+Now we check the number of null values and variables that consist of null values in the dataset.  
+```{r}
+sum(is.na(hr))
+```
+
+## Summary of the dataset
+```{r}
+summary(hr)
+glimpse(hr)
+```
+## Missing Values using Graphical Representation
+Here we can graphically visualize the null values in each attribute
+```{r, warning=FALSE}
+gg_miss_var(hr)
+```
+
+## Heat Plot of Missing Values
+Heat plot that clearly mention the features containing null values and overall percentage of missing and present values.
+```{r}
+vis_miss(hr) + theme(axis.text.x = element_text(angle = 90))
+```
+
+# Exploratory Data Analysis
+
+## Analysis of Departments
+This pie chart is used to find the types of departments in a company along with their percentages. 
+
+```{r}
+hr_dept <- data.frame(table(hr$Department))
+hr_dept <- hr_dept[,c('Var1', 'Freq')]
+fig <- plot_ly(hr_dept, labels = ~Var1, values = ~Freq, type = 'pie')
+fig
+```
+## Salary Analysis of Each Department
+
+```{r, message=FALSE}
+
+# Group department variable with salary.
+salary_dept <-  hr %>% 
+  group_by(Department, salary) %>% 
+  summarize(Freq = n())
+
+# Filtering salary and grouping it with particular department
+salary_dept_1 <-  hr %>% 
+    filter(salary %in% c("high","medium","low")) %>% 
+    group_by(Department) %>% 
+    summarize(sum = n())
+
+# Merging both variables in order to visualize and plot
+salary_ratio <- merge (salary_dept, salary_dept_1, by="Department")
+
+salary_ratio <- salary_ratio %>% 
+  mutate(ratio = Freq/sum)
+
+# Plot
+ggplot(salary_ratio, aes(x=Department, y = ratio, fill = salary)) + geom_bar(position = "dodge", stat="identity") + 
+  xlab("Department") + ylab ("Salary") +
+  scale_fill_discrete(name = "Salary Categories") +
+  scale_y_continuous(labels = scales::percent) +
+  coord_flip()
+
+```
+
+## Satisfaction level comparison among each department.
+
+```{r, warning=FALSE}
+hr %>% 
+  group_by(Department) %>% 
+  summarise(mean_satisfaction_level = mean(satisfaction_level, na.rm = TRUE)) %>% 
+  ggplot(aes(x = reorder(Department, mean_satisfaction_level), y = mean_satisfaction_level, fill = Department)) +
+  geom_col(stat ="identity", color = "black", fill="#ba3a9e") +
+  coord_flip() +
+  theme_gray() +
+  labs(x = "Department", y = "Satisfaction Level") +
+  geom_text(aes(label = round(mean_satisfaction_level,digit = 4)), hjust = 2.0, color = "white", size = 3.5) +
+  ggtitle("Satisfaction Level for each Department", subtitle = "Satisfaction Level vs Department") + 
+  xlab("Department") + 
+  ylab("Satisfaction Level") +
+  theme(legend.position = "none",
+        plot.title = element_text(color = "black", size = 14, face = "bold", hjust = 1),
+        plot.subtitle = element_text(color = "black", hjust = 0.5),
+        axis.title.y = element_text(),
+        axis.title.x = element_text(),
+        axis.ticks = element_blank())
+```
+
+## Satisfaction Level for each department
+
+```{r, message=FALSE}
+hr %>% 
+  filter(!(is.na(salary))) %>% 
+  filter(!(salary == "Unknown")) %>% 
+  group_by(salary) %>% 
+  summarise(mean_satisfaction_level = mean(satisfaction_level, na.rm = TRUE)) %>% 
+  ggplot(aes(x = reorder(salary, mean_satisfaction_level), y = mean_satisfaction_level, fill = salary)) +
+  geom_col(stat ="identity", color = "black", fill="#b9d2fa") +
+  coord_flip() +
+  theme_gray() +
+  labs(x = "Salary", y = "Satisfaction Level") +
+  geom_text(aes(label = round(mean_satisfaction_level,digit = 4)), hjust = 2.0, color = "black", size = 3.5) +
+  ggtitle("Mean Satisfaction Level comparison with Salary", subtitle = "Satisfaction Level vs Salary") + 
+  xlab("Salary") + 
+  ylab("Satisfaction Level") +
+  theme(legend.position = "none",
+        plot.title = element_text(color = "black", size = 14, face = "bold", hjust = 0.5),
+        plot.subtitle = element_text(color = "black", hjust = 0.5),
+        axis.title.y = element_text(),
+        axis.title.x = element_text(),
+        axis.ticks = element_blank())
+```
+## Coorelation Matrix of numeric dimensions
+Correlation plot is made to find relationship among features.
+
+```{r}
+hr.corr <- hr %>% 
+  select(satisfaction_level,last_evaluation,number_project,average_montly_hours,time_spend_company,Work_accident,left,promotion_last_5years)
+
+cor(hr.corr) # get the correlation matrix
+corrplot(cor(hr.corr), method= "circle", bg = "black") # put this in a nice table
+```
+
+# Statistical Tests
+
+## 1. Hypothesis Test
+Before performing any technique we need to perform some preliminary tests.
+
+## Checking NORMALITY of the dataset
+Null Hypothesis: Data is normally distributed
+Alternative Hypothesis: Data is not normally distributed
+
+## Graphical Analysis for Normality Check
+
+## Histogram
+```{r}
+par(mfrow =  c(2,2))
+hist(hr$satisfaction_level, freq= TRUE, main = paste("Histogram of Satisfaction Level"), xlab = 'satisfaction_level', col = '#32a88d')
+hist(hr$last_evaluation, freq= TRUE, main = paste("Histogram of Last Evaluation"), xlab = 'satisfaction_level', col = '#3298a8')
+hist(hr$average_montly_hours, freq= TRUE, main = paste("Histogram of Average Monthly Hours"), xlab = 'satisfaction_level', col = '#326da8')
+hist(hr$number_project, freq= TRUE, main = paste("Histogram of Number of Projects"), xlab = 'satisfaction_level', col = '#5732a8')
+```
+## Boxplot
+```{r}
+par(mfrow = c(2,2))
+boxplot(hr$satisfaction_level, xlab = 'satifaction_level', col = '#32a88d')
+boxplot(hr$last_evaluation, xlab = 'last_evaluation', col = '#3298a8')
+boxplot(hr$average_montly_hours, xlab = 'average_montly_hours', col = '#326da8')
+boxplot(hr$number_project, xlab = 'number_project', col = '#5732a8')
+```
+## QQ-Plot
+```{r}
+qqnorm(hr$satisfaction_level)
+qqline(hr$satisfaction_level, col = 'blue' )
+```
+## GGQQPLOT
+```{r}
+ggqqplot(hr$satisfaction_level)
+```
+
+From the above plots one can conclude that data for satisfaction level is right skewed, which means that distribution is not normal. Hence, we will now implement non_parametric test i.e. Mann-Whitney U-test instead of T-test (Parametric Test).
+
+## Statistical Test to check Normality
+```{r}
+
+summary(hr$satisfaction_level)
+
+nortest::ad.test(hr$satisfaction_level)
+
+shapiro.test(hr$satisfaction_level[0:5000])
+shapiro.test(hr$satisfaction_level[5001:10000])
+shapiro.test(hr$satisfaction_level[10001:14999])
+
+```
+As the p-value is much smaller than threshold value i.e. 0.05. So we can reject null hypothesis and go with the alternative hypothesis.
+Alternative Hypothesis: Data is not normally distributed
+
+Here we implemented shapiro-wilk test three times as this test has some limitation that it can only be implemented on 5000 observations so we used test three times according to dataset. Moreover, Anderson_Darling test is also applied to cross check the normality of data. 
+
+## Two Independent Samples, Mann-Whitney U-Test
+
+In this test, selected dimensions are satisfaction_level as metric variable and left as nominal variable.
+
+Null Hypothesis: Left has no influence on satisfaction_level
+Alternative Hypothesis: Left has influence on satisfaction_level
+
+```{r}
+wilcox.test(hr$satisfaction_level~hr$left)
+```
+A Mann-Whitney U-test showed that left has significant influence (W =  30522915, p-value = 2.2e-16) on satisfaction level.  
+
+## Comparison Box Plot
+```{r}
+fig <- plot_ly(y = hr$satisfaction_level, x = hr$left, type = "box")
+fig <- fig%>%layout(title = "Satisfaction_Level vs Left")
+fig
+```
+
+# Chi-Squared Test
+
+## 1st Chi-Sq  Test
+In this test, we use categorical variables in order to find some relationship among the variables. Here, department and promotion_last_5years are used for testing
+
+```{r}
+chisq_table <- table(hr$Department, hr$promotion_last_5years)
+balloonplot(t(chisq_table), main = "Data Analysis for Chi Squared Test", label=FALSE, show.margins = FALSE, xlab = "Promotion Last 5 Years", ylab = "Department")
+```
+
+Implementing Chi-sq test using R formula
+
+```{r}
+chisq <- chisq.test(chisq_table)
+chisq
+```
+
+Observed Frequencies
+
+```{r}
+chisq$observed
+```
+
+Expected Frequencies
+
+```{r}
+round(chisq$expected, 0)
+```
+
+Residuals
+
+```{r}
+round(chisq$residuals, 3)
+```
+
+Correlation Plot of Residuals
+
+```{r}
+corrplot(chisq$residuals, is.cor = FALSE)
+```
+
+
+## 2nd Chi-Sq Test
+
+Now here department and salary are used for testing
+
+```{r}
+chisq_table1 <- table(hr$Department, hr$salary)
+balloonplot(t(chisq_table1), main = "Data Analysis for Chi Squared Test", label=FALSE, show.margins = FALSE, xlab = "Salary", ylab = "Department")
+```
+
+
+Chi-sq test using R formula
+
+```{r}
+chisq_1 <- chisq.test(chisq_table1)
+chisq_1
+```
+
+Observed Values
+
+```{r}
+chisq_1$observed
+```
+
+Expected Values
+
+```{r}
+round(chisq_1$expected, 2)
+```
+
+Residuals
+
+```{r}
+round(chisq_1$residuals, 3)
+```
+
+Correlation Plot of Residuals
+
+```{r}
+corrplot(chisq_1$residuals, is.cor = FALSE)
+```
+Next test is One Factor ANOVA test but As the data is not normally distributed so we will use Kruskal Wallis Test.
+## Kruskal Wallis Test
+In order to implement kruskal wallis test, Department and satisfaction_level are the selected dimensions.
+
+Null Hypothesis: No significant differences between the satisfaction level of employees among various department
+Alternative Hypothesis: There is a significant differences between the satisfaction level of employees among various department 
+
+```{r}
+Dept <- hr$Department
+SL <- hr$satisfaction_level
+
+KWT_data <- data.frame(Dept, SL)
+```
+
+```{r}
+levels(KWT_data$Dept)
+```
+```{r}
+KWT_data$Dept <- ordered(KWT_data$Dept, levels = c("accounting","hr","IT","management","marketing","product_mng","RandD","sales","support","technical"))
+```
+
+```{r}
+group_by(KWT_data, Dept) %>%
+  summarise(count = n(),mean = mean(KWT_data$SL),sd = sd(KWT_data$SL),median = median(KWT_data$SL),IQR = IQR(KWT_data$SL))
+```
+
+```{r}
+fig <- plot_ly(ggplot2::diamonds, y = ~KWT_data$SL, x=~KWT_data$Dept, type = "box",  color = KWT_data$Dept)
+fig
+```
+
+```{r}
+ggline(KWT_data, x = "Dept", y = "SL", 
+       add = c("mean_se", "jitter"), 
+       order = c("accounting","hr","IT","management","marketing","product_mng","RandD","sales","support","technical"),
+       ylab = "Satisfaction Level", xlab = "Departments") + theme(axis.text.x = element_text(angle = 45, hjust = 0.4, vjust = 0.5))
+
+```
+
+```{r}
+kruskal.test(KWT_data$SL ~ KWT_data$Dept)
+```
+The result depicts that p-value is less than significance level, so we can conclude that there are significant differences of satisfaction level among employees of different departments but as we can also see that there isn't a big difference within calculated p-value and significance level, in that case we can say as well that there is a small difference in satisfaction level among employees of different departments but not the massive difference.
+
+# Correlation
+For correlation, two variables are taken under consideration which includes "time_spend_company", "work_accident" and "number_project". Furthermore, we have to find whether to implement non-parametric or parametric test. For this, normality of considered variables will be checked. 
+```{r}
+par(mfrow = c(1,2))
+hist(hr$number_project , freq= TRUE, main = paste("Histogram of Number of Porjects"), xlab = 'number_project', col = '#53b56d')
+hist(hr$time_spend_company , freq= TRUE, main = paste("Histogram of Time_Spend_Company"), xlab = 'Time_Spend_Company', col = '#53b56d')
+```
+
+Above graphs depicts that data is not normally distributed, in fact, it's left skewed. For more clarification, we visualize QQ plot and perform normality test as well.
+
+## QQ-Plot for "number_project"
+```{r}
+qqnorm(hr$number_project)
+qqline(hr$number_project, col = 'blue' )
+```
+
+
+## QQ-Plot for "time_spend_company"
+```{r}
+qqnorm(hr$time_spend_company)
+qqline(hr$time_spend_company, col = 'blue' )
+```
+
+```{r}
+summary(hr$number_project)
+
+nortest::ad.test(hr$number_project)
+
+```
+
+```{r}
+summary(hr$time_spend_company)
+
+nortest::ad.test(hr$time_spend_company)
+```
+
+```{r}
+ggscatter(hr, x = "number_project", y = "time_spend_company", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Number of Projects", ylab = "Time Spend in Company")
+```
+
+```{r}
+cor.test(hr$number_project, hr$time_spend_company,  method = "spearman", exact = FALSE)
+```
+
+# Linear Regreesion
+```{r}
+HR <- hr
+
+y <- HR %>% select(satisfaction_level)
+x <- HR %>% select(number_project, last_evaluation, time_spend_company, salary, Work_accident)
+
+set.seed(0)
+HR_split <- initial_split(HR, prop = 3/4)
+HR_training <- HR_split %>% 
+  training()
+HR_test <- HR_split %>% 
+  testing()
+
+train_index <- as.integer(rownames(HR_training))
+test_index <- as.integer(rownames(HR_test))
+
+HR[train_index,'split'] = 'train'
+HR[test_index,'split'] = 'test'
+
+lm_model <- linear_reg() %>% 
+  set_engine('lm') %>% 
+  set_mode('regression') %>%
+  fit(satisfaction_level ~ number_project + time_spend_company + salary + Work_accident  + last_evaluation, data = HR_training) 
+
+prediction <- lm_model %>%
+  predict(x) 
+colnames(prediction) <- c('prediction')
+HR = cbind(HR, prediction)
+
+hist_top <- ggplot(HR,aes(x=satisfaction_level)) + 
+  geom_histogram(data=subset(HR,split == 'train'),fill = "red", alpha = 0.2, bins = 6) +
+  geom_histogram(data=subset(HR,split == 'test'),fill = "blue", alpha = 0.2, bins = 6) +
+  theme(axis.title.y=element_blank(),axis.text.y=element_blank(),axis.ticks.y=element_blank())
+hist_top <- ggplotly(p = hist_top)
+
+scatter <- ggplot(HR, aes(x = satisfaction_level, y = prediction, color =  split)) +
+ geom_point() +
+ geom_smooth(formula=y ~ x, method=lm, se=FALSE)
+scatter <- ggplotly(p = scatter, type = 'scatter')
+
+hist_right <- ggplot(HR,aes(x=prediction)) +
+ geom_histogram(data=subset(HR,split == 'train'),fill = "red", alpha = 0.2, bins = 13) +
+ geom_histogram(data=subset(HR,split == 'test'),fill = "blue", alpha = 0.2, bins = 13) +
+ theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.ticks.x=element_blank())+
+ coord_flip()
+hist_right <- ggplotly(p = hist_right)
+
+s <- subplot(
+ hist_top,
+ plotly_empty(),
+ scatter,
+ hist_right,
+ nrows = 2, heights = c(0.2, 0.8), widths = c(0.8, 0.2), margin = 0,
+ shareX = TRUE, shareY = TRUE, titleX = TRUE, titleY = TRUE
+)
+layout(s, showlegend = FALSE)
+
+```
+
+## Training Model with Training dataset
+```{r}
+lm_model <- lm(satisfaction_level ~ number_project + time_spend_company + salary + Work_accident  + last_evaluation, data = HR_training )
+summary(lm_model)
+```
+
+
+
+R squared 
+```{r}
+summary(lm_model)$r.squared
+```
+
+Adjusted R squared
+```{r}
+summary(lm_model)$adj.r.squared
+```
+
+Plot Linear Model
+```{r}
+par(mfrow = c(2,2))
+plot(lm_model)
+```
+
+## Predicting from model using Testing Dataset
+```{r}
+prediction <- predict(object = lm_model, newdata = HR_test)
+```
+
+Testing accuracy of the data using mean absolute error
+```{r}
+Metrics::mae(prediction, HR_test$satisfaction_level)
+```
+Mean Absolute Error is 0.2.This indicates that the average absolute difference between the observed values and the predicted values is approximately 0.2.
+
+# Logistic Regression
+```{r}
+
+LR_HR <- hr
+
+LR_HR$salary_0 <- ifelse(LR_HR$salary == 'low', 1, 0)
+LR_HR$salary_1 <- ifelse(LR_HR$salary == 'medium', 1, 0)
+LR_HR$salary_2 <- ifelse(LR_HR$salary == 'high', 1, 0)
+
+LR_HR <- LR_HR %>%
+  select(-salary,-Department,-Work_accident)
+LR_HR <- data.frame(LR_HR)
+colnames(LR_HR)
+
+```
+
+## Split the data into training and test set
+```{r}
+
+set.seed(123)
+training.samples <- LR_HR$satisfaction_level %>% 
+  createDataPartition(p = 0.8, list = FALSE)
+train.data  <- LR_HR[training.samples, ]
+test.data <- LR_HR[-training.samples, ]
+```
+
+## Training model with all predictive variables
+```{r}
+model <- glm( left ~.+0, 
+              data = data.frame(train.data))
+summary(model)$coef
+```
+## Probabilities
+```{r}
+prob <- model %>% predict(test.data, type="response")
+head(prob)
+```
+
+## Prediction
+```{r}
+pred <- ifelse(prob > 0.5, 1,0)
+head(pred)
+```
+
+## Accuracy
+```{r}
+mean(pred == test.data$left)
+
+```
+
+
+
+
+
+
+
+
+
